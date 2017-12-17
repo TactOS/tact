@@ -1,0 +1,53 @@
+#!/bin/bash
+
+GENTOO_BUILD_SERVER="http://tactos.net"
+ATOM=${1}
+PKGDIR='/usr/portage/packages'
+
+emerge -pv ${ATOM} || exit
+
+atoms=(`emerge -pq ${ATOM} | sed -e 's/\[[^]]*\]\([^ ]*\)/\1/g' | tr -d ' '`)
+
+downloads=()
+
+for atom in ${atoms[*]}; do
+	echo -e "\n${atom}"
+	rest_url=$(qatom --format '%{CATEGORY}/%{PN}/%{PV}-%[PR]' ${atom} | sed -e 's/-$//')
+	uses_json=$(equery -q u ${atom} | sed -e 's/\([+-]\)\(.*\)/"\2":\1/' -e 's/-$/false/' -e 's/+$/true/' -e 's/.*/\0,/')
+	uses_json=${uses_json%,}
+	download=$(curl -s -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "{\"use\":{${uses_json}}}" ${GENTOO_BUILD_SERVER}/api/1/atoms/gentoo/${rest_url}/builds)
+	echo "http://${GENTOO_BUILD_SERVER}/api/1/atoms/${download}"
+	downloads+=(${download})
+done
+
+for (( i = 0; i < ${#downloads[*]}; ++i )); do
+	category=$(qatom --format '%{CATEGORY}' ${atoms[i]})
+	package=$(qatom --format '%{PN}' ${atoms[i]})
+	version=$(qatom -F '%{PV}-%[PR]' ${atoms[i]} | sed -e 's/-$//')
+
+	echo -e "\nWait for ${category}/${package}-${version}.tbz2"
+  echo "http://${GENTOO_BUILD_SERVER}/api/1/atoms/${downloads[i]}"
+
+	while true; do
+		case $(curl -s ${GENTOO_BUILD_SERVER}/api/1/atoms/${downloads[i]}/status) in
+			'success')
+				echo -e "\nSuccess! ($(( ${i} + 1 )) of ${#downloads[*]})"
+			break;;
+			'failed')
+				echo -e "\nFailed! ($(( ${i} + 1 )) of ${#downloads[*]})"
+			break;;
+			*)
+			sleep 10
+			echo -n '.';;
+		esac
+	done
+
+	mkdir -p ${PKGDIR}/${category}
+	if curl -s -o ${PKGDIR}/${category}/${package}-${version}.tbz2 ${GENTOO_BUILD_SERVER}/api/1/atoms/${downloads[i]}; then
+		echo "Success!"
+	else
+		echo "Failed!"
+	fi
+done
+
+emerge -avk ${ATOM}
