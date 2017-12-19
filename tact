@@ -10,15 +10,20 @@ atoms=(`emerge -pq ${ATOM} | sed -e 's/\[[^]]*\]\([^ ]*\)/\1/g' | tr -d ' '`)
 
 downloads=()
 
-for atom in ${atoms[*]}; do
-  echo -e "\n${atom}"
-  rest_url=$(qatom --format '%{CATEGORY}/%{PN}/%{PV}-%[PR]' ${atom} | sed -e 's/-$//')
-  uses_json=$(equery -q u ${atom} | sed -e 's/\([+-]\)\(.*\)/"\2":\1/' -e 's/-$/false/' -e 's/+$/true/' -e 's/.*/\0,/')
+for (( i = 0; i < ${#atoms[*]}; ++i )); do
+  echo -e "\n${atoms[i]}"
+  rest_url=$(qatom --format '%{CATEGORY}/%{PN}/%{PV}-%[PR]' ${atoms[i]} | sed -e 's/-$//')
+  uses_json=$(equery -q u ${atoms[i]} | sed -e 's/\([+-]\)\(.*\)/"\2":\1/' -e 's/-$/false/' -e 's/+$/true/' -e 's/.*/\0,/')
   uses_json=${uses_json%,}
-  download=$(curl -s -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "{\"use\":{${uses_json}}}" ${GENTOO_BUILD_SERVER}/api/1/atoms/gentoo/${rest_url}/builds)
-  echo "http://${GENTOO_BUILD_SERVER}/api/1/atoms/${download}"
-  downloads+=(${download})
+  if download=$(curl -f -s -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "{\"use\":{${uses_json}}}" ${GENTOO_BUILD_SERVER}/api/1/atoms/gentoo/${rest_url}/builds); then
+    echo "http://${GENTOO_BUILD_SERVER}/api/1/atoms/${download}"
+    downloads+=(${download})
+  else
+    echo "Failed!"
+    unset atoms[i]
+  fi
 done
+atoms=(${atoms[*]})
 
 for (( i = 0; i < ${#downloads[*]}; ++i )); do
   category=$(qatom --format '%{CATEGORY}' ${atoms[i]})
@@ -43,7 +48,7 @@ for (( i = 0; i < ${#downloads[*]}; ++i )); do
   done
 
   mkdir -p ${PKGDIR}/${category}
-  if curl -s -o ${PKGDIR}/${category}/${package}-${version}.tbz2 ${GENTOO_BUILD_SERVER}/api/1/atoms/${downloads[i]}; then
+  if curl -f -s -o ${PKGDIR}/${category}/${package}-${version}.tbz2 ${GENTOO_BUILD_SERVER}/api/1/atoms/${downloads[i]}; then
     echo "Download success!"
   else
     echo "Download failed!"
