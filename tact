@@ -31,10 +31,10 @@ for (( i = 0; i < ${#downloads[*]}; ++i )); do
   while true; do
     case $(curl -s ${GENTOO_BUILD_SERVER}/api/1/atoms/${downloads[i]}/status) in
       'success')
-        echo -e "\nSuccess! ($(( ${i} + 1 )) of ${#downloads[*]})"
+        echo -e "\nBuild success! ($(( ${i} + 1 )) of ${#downloads[*]})"
       break;;
       'failed')
-        echo -e "\nFailed! ($(( ${i} + 1 )) of ${#downloads[*]})"
+        echo -e "\nBuild failed! ($(( ${i} + 1 )) of ${#downloads[*]})"
       break;;
       *)
       sleep 10
@@ -44,9 +44,9 @@ for (( i = 0; i < ${#downloads[*]}; ++i )); do
 
   mkdir -p ${PKGDIR}/${category}
   if curl -s -o ${PKGDIR}/${category}/${package}-${version}.tbz2 ${GENTOO_BUILD_SERVER}/api/1/atoms/${downloads[i]}; then
-    echo "Success!"
+    echo "Download success!"
   else
-    echo "Failed!"
+    echo "Download failed!"
   fi
 done
 
