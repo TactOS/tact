@@ -16,7 +16,7 @@ for (( i = 0; i < ${#atoms[*]}; ++i )); do
   uses_json=$(equery -q u ${atoms[i]} | sed -e 's/\([+-]\)\(.*\)/"\2":\1/' -e 's/-$/false/' -e 's/+$/true/' -e 's/.*/\0,/')
   uses_json=${uses_json%,}
   if download=$(curl -f -s -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "{\"use\":{${uses_json}}}" ${GENTOO_BUILD_SERVER}/api/1/atoms/gentoo/${rest_url}/builds); then
-    echo "http://${GENTOO_BUILD_SERVER}/api/1/atoms/${download}"
+    echo "${GENTOO_BUILD_SERVER}/api/1/atoms/${download}"
     downloads+=(${download})
   else
     echo "Failed!"
@@ -31,7 +31,7 @@ for (( i = 0; i < ${#downloads[*]}; ++i )); do
   version=$(qatom -F '%{PV}-%[PR]' ${atoms[i]} | sed -e 's/-$//')
 
   echo -e "\nWait for ${category}/${package}-${version}.tbz2"
-  echo "http://${GENTOO_BUILD_SERVER}/api/1/atoms/${downloads[i]}"
+  echo "${GENTOO_BUILD_SERVER}/api/1/atoms/${downloads[i]}"
 
   while true; do
     case $(curl -s ${GENTOO_BUILD_SERVER}/api/1/atoms/${downloads[i]}/status) in
