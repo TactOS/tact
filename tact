@@ -35,10 +35,10 @@ for (( i = 0; i < ${#downloads[*]}; ++i )); do
 
   while true; do
     case $(curl -s ${GENTOO_BUILD_SERVER}/api/1/atoms/${downloads[i]}/status) in
-      'success')
+      '{ status: "success" }')
         echo -e "\nBuild success! ($(( ${i} + 1 )) of ${#downloads[*]})"
       break;;
-      'failed')
+      '{ status: "failed" }')
         echo -e "\nBuild failed! ($(( ${i} + 1 )) of ${#downloads[*]})"
       break;;
       *)
